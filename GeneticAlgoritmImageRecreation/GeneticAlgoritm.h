@@ -5,6 +5,7 @@
 #include "ImageContainer.h"
 #include "OpenCL.h"
 #include <thread>
+#include "GeneticImage.h"
 
 
 class GeneticAlgoritm
@@ -14,31 +15,35 @@ public:
 
     int generation;
 
-    //Happening on GPU - Most computational demand
-    void CalculateFitness(std::vector<GeneticEllipse> &population, ImageContainer GoalImageContainer, ImageContainer BaseImageContainer);
+    void CalculateFitness(ImageContainer GoalImageContainer);   
     
-    void Mate(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer);
-    void InitPopulation(std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer);
+    void Mate();
+    void InitPopulation();
   
-    void Swap(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer);
-    void SortByFitness(std::vector<GeneticEllipse>& population);
+    void Swap();
+    void SortByFitness();
+    GeneticImage getBestImage();
 
 private:
-    const int GA_POPSIZE = 25;
-    const float GA_ELITRATE = 0.10f;
-    const float GA_MUTATIONRATE = 0.50f;
+    const int GA_POPSIZE = 1000;
+    const float GA_ELITRATE = 0.25f;
+    const float GA_MUTATIONRATE = 0.25f;
 
-    OpenCL CLAlgoritm;
+    std::vector<GeneticImage> population;
+    std::vector<GeneticImage> buffer;
 
-    void Crossover(GeneticEllipse &c, std::vector<GeneticEllipse> &population);
-    void Mutate(GeneticEllipse &c);
+    //OpenCL CLAlgoritm;
+
+    void Crossover(GeneticImage &i);
+
+    void Mutate(GeneticImage& i);
 
     // Parallel Functions
-    void Elitism(std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer, int esize);
+    void Elitism(int esize);
 
-    void ParallelInitPopulation(int start, int end,std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer);
-    void ParallelCrossoverAndMutate(int start, int end, std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer);
+    void ParallelInitPopulation(int start, int end,std::vector<GeneticImage>& population, std::vector<GeneticImage>& buffer);
+    void ParallelCrossoverAndMutate(const int esize, int start, int end, std::vector<GeneticImage>& population, std::vector<GeneticImage>& buffer);
 
     // + GPU
-    void ParallelCalcFitness(int start, int end, std::vector<GeneticEllipse>& population,ImageContainer GoalImageContainer, ImageContainer BaseImageContainer);
+    void ParallelCalcFitness(int start, int end, std::vector<GeneticImage>& population, ImageContainer GoalImageContainer);
 };

@@ -2,13 +2,14 @@
 
 sf::Vector2f GeneticEllipse::pictureSize = sf::Vector2f(0, 0);
 
-GeneticEllipse GeneticEllipse::getRandomEllipse()
-{
-    return GeneticEllipse(randVector2f(GeneticEllipse::pictureSize), randVector2f(GeneticEllipse::pictureSize / 2.f), randfloat(360), randColor());
-}
-
 GeneticEllipse::GeneticEllipse()
 {
+    position = randVector2f(GeneticEllipse::pictureSize);
+    size = randVector2f(GeneticEllipse::pictureSize / 2.f);
+    angle = randfloat(360);
+    color = randColor();
+
+    computeFocus();
 }
 
 GeneticEllipse::GeneticEllipse(Vector2f const &_position, Vector2f const &_size, float const &_angle, Color const &_color)

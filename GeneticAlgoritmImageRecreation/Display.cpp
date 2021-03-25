@@ -1,43 +1,19 @@
 #include "Display.h"
 
-Display::Display(std::string path)
+Display::Display(std::string path, GeneticAlgoritm* _algoritm, sf::RenderWindow* _window)
 {
 	GoalImage.loadFromFile(path);
-	BaseImage.create(GoalImage.getSize().x, GoalImage.getSize().y, Color::Black);
-
-	GoalContainer = ImageContainer(GoalImage);
-	BaseContainer = ImageContainer(BaseImage);
-
 	GeneticEllipse::pictureSize = Vector2f(GoalImage.getSize().x, GoalImage.getSize().y);
 
-	GoalImageSprite.setPosition(0, 400);
-	GoalImageTexture.loadFromImage(GoalImage);
-	GoalImageSprite.setTexture(GoalImageTexture);
-
-	algoritm.InitPopulation(population, buffer);
-}
-
-Display::Display(std::string path, sf::RenderWindow *_window)
-{
-	algoritm.InitPopulation(population, buffer);
-
-	GoalImage.loadFromFile(path);
-	BaseImage.create(GoalImage.getSize().x, GoalImage.getSize().y, Color::Black);
 	CopyImage.create(GoalImage.getSize().x, GoalImage.getSize().y, sf::Color::Black);
-
 	GoalContainer = ImageContainer(GoalImage);
-	BaseContainer = ImageContainer(BaseImage);
-
-	GeneticEllipse::pictureSize = Vector2f(GoalImage.getSize().x, GoalImage.getSize().y);
 
 	window = _window;
+	algoritm = _algoritm;
 	
 	GoalImageTexture.loadFromImage(GoalImage);
 	GoalImageSprite.setTexture(GoalImageTexture);
 	
-	setCopySprite();
-	handleResizeEvent();
-
 
 	if (!font.loadFromFile("font.ttf"))
 	{
@@ -52,30 +28,25 @@ Display::Display(std::string path, sf::RenderWindow *_window)
 		EllapsedTimeText.setFont(font);
 	}
 
+	DisplayLoadingWindow();
+
+	algoritm->InitPopulation();
+
+	setCopySprite();
+	handleResizeEvent();
+
 	simulationStartTime = std::chrono::steady_clock::now();
 }
 
+
 void Display::DoWork()
 {
-	algoritm.CalculateFitness(population, GoalContainer, BaseContainer);
-	algoritm.SortByFitness(population);
-	
-	algoritm.Mate(population, buffer);
-	algoritm.Swap(population, buffer);
+	algoritm->CalculateFitness(GoalContainer);
+	algoritm->SortByFitness();
+	algoritm->Mate();
+	algoritm->Swap();
     
-	algoritm.generation++;
-
-	if (algoritm.generation % 150 == 0)
-	{
-		CopyImage.copy(BaseImage, 0, 0, sf::IntRect(0, 0, 0, 0), true);
-		
-		population[0].addToImage(CopyImage);
-
-		BaseImage = CopyImage;
-		CopyImage.create(BaseImage.getSize().x, BaseImage.getSize().y, sf::Color::Black);
-
-		algoritm.InitPopulation(population, buffer);
-	}
+	algoritm->generation++;
 }
 
 //Only this is when we want to Render an actual sf::Image
@@ -111,11 +82,29 @@ void Display::HandleEvents()
 
 }
 
+void Display::DisplayLoadingWindow()
+{
+	sf::Text loadingText;
+
+	loadingText.setFont(font);
+	loadingText.setCharacterSize(30);
+	loadingText.setString("Loading...");
+	loadingText.setPosition((this->window->getView().getSize().x / 2) - loadingText.getGlobalBounds().width, (this->window->getView().getSize().y / 2) - loadingText.getGlobalBounds().height);
+
+	window->clear(sf::Color::Black);
+	window->draw(loadingText);
+
+	window->setActive();
+	window->display();
+	
+
+
+}
+
 void Display::setCopySprite()
 {
-	CopyImage.copy(BaseImage, 0, 0, sf::IntRect(0, 0, 0, 0), true);
+	CopyImage.copy(algoritm->getBestImage().image, 0, 0, sf::IntRect{ 0,0,0,0 }, true);
 	
-	population[0].addToImage(CopyImage);
 	CopyImageTexture.loadFromImage(CopyImage);
 	CopyImageSprite.setTexture(CopyImageTexture);
 }
@@ -158,7 +147,7 @@ void Display::setTexts()
 {
 	std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
-	GenerationText.setString("Generation: " + std::to_string(algoritm.generation));
+	GenerationText.setString("Generation: " + std::to_string(algoritm->generation));
 	EllapsedTimeText.setString("Elapsed time: " + std::to_string(std::chrono::duration_cast<std::chrono::seconds> (now - simulationStartTime).count()) + " seconds");
 
 	GenerationText.setPosition(window->getView().getSize().x - GenerationText.getGlobalBounds().width, 0);

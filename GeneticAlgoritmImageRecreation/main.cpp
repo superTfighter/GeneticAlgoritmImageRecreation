@@ -13,30 +13,34 @@ bool running = true;
 
 void doWork(Display& d)
 {
-
     while(running)
     {
         d.DoWork();
     }
-  
 }
 
 int main()
 {
-     sf::RenderWindow window(sf::VideoMode(WindowWidth, WindowHeight, 32), "Genetic Algoritm");
-     Display d("girl.jpg",&window);
+    srand(time(NULL));
+    
+     GeneticAlgoritm algoritm;
 
-     std::thread workThread(doWork, std::ref(d));
+     sf::RenderWindow window(sf::VideoMode(WindowWidth, WindowHeight, 32), "Genetic Algoritm");
+
+     Display d("ford.jpg",&algoritm,&window);
+
+    std::thread workThread(doWork, std::ref(d));
 
      while (window.isOpen())
      {
+        // d.DoWork();
          d.HandleEvents();
          d.Render();
      }
 
      running = false;
 
-    workThread.join();
+   workThread.join();
 
     return 0;
 }

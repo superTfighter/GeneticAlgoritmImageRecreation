@@ -3,190 +3,169 @@
 GeneticAlgoritm::GeneticAlgoritm()
 {
     generation = 0;
-}
 
-void GeneticAlgoritm::InitPopulation(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer)
-{
     population.clear();
     buffer.clear();
+    population.reserve(GA_POPSIZE);
+    buffer.reserve(GA_POPSIZE);
+}
 
+void GeneticAlgoritm::InitPopulation()
+{   
+    population.clear();
+    population.clear();
+    buffer.clear();
     population.reserve(GA_POPSIZE);
     buffer.reserve(GA_POPSIZE);
 
-    //unsigned int numThreads = std::thread::hardware_concurrency();
-    //std::vector<std::thread> thread_pool;
+    std::vector<std::thread> thread_pool;
+    int numberOfThreads = std::thread::hardware_concurrency();
+    thread_pool.reserve(numberOfThreads);
+    int blockSize = GA_POPSIZE / numberOfThreads;
 
-    //thread_pool.reserve(numThreads);
-
-    //int blockSize = GA_POPSIZE / numThreads;
-
-    //for (size_t i = 0; i < numThreads; i++)
-    //{
-
-    //    if (i == numThreads - 1)
-    //    {
-    //        //Start,end,pop,buff
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelInitPopulation, this, i * blockSize, GA_POPSIZE, std::ref(population),std::ref(buffer)));
-    //    }
-    //    else
-    //    {
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelInitPopulation, this, i * blockSize, (i + 1) * blockSize, std::ref(population), std::ref(buffer)));
-    //    }
-
-    //}
-
-    //for (size_t i = 0; i < numThreads; i++)
-    //{
-    //    if(thread_pool[i].joinable())
-    //    {
-    //        try
-    //        {
-    //            thread_pool[i].join();
-    //        }
-    //        catch (const std::exception& e )
-    //        {
-    //            std::cout << e.what() << std::endl;
-    //        }
-    //        
-    //    }
-    //        
-    //}
-
-    for (int i = 0; i < GA_POPSIZE; i++)
+    for (size_t i = 0; i < numberOfThreads; i++)
     {
-        GeneticEllipse e = GeneticEllipse::getRandomEllipse();
-
-        population.push_back(e);
-        buffer.push_back(GeneticEllipse());
-    }
-}
-
-void GeneticAlgoritm::CalculateFitness(std::vector<GeneticEllipse>& population, ImageContainer GoalImageContainer, ImageContainer BaseImageContainer)
-{
-    //unsigned int numThreads = std::thread::hardware_concurrency();
-    //std::vector<std::thread> thread_pool;
-
-    //thread_pool.reserve(numThreads);
-
-    //int blockSize = GA_POPSIZE / numThreads;
-
-    //for (size_t i = 0; i < numThreads; i++)
-    //{
-
-    //    if (i == numThreads - 1)
-    //    {
-    //        //Start,end,pop,buff
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCalcFitness, this, i * blockSize, GA_POPSIZE, std::ref(population),GoalImageContainer,BaseImageContainer));
-    //    }
-    //    else
-    //    {
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCalcFitness, this, i * blockSize, (i + 1)  * blockSize, std::ref(population), GoalImageContainer, BaseImageContainer));
-    //    }
-
-    //}
-
-    //for (size_t i = 0; i < numThreads; i++)
-    //{
-    //    if (thread_pool[i].joinable())
-    //    {
-    //        try
-    //        {
-    //            thread_pool[i].join();
-    //        }
-    //        catch (const std::exception& e)
-    //        {
-    //            std::cout << e.what() << std::endl;
-    //        }
-
-    //    }
-
-    //}
-
-     //INIT STATE
-    sf::Image CopyImage;
-
-    for (int i = 0; i < GA_POPSIZE; i++)
-    {
-        CopyImage.create(GeneticEllipse::pictureSize.x, GeneticEllipse::pictureSize.y, BaseImageContainer.getPixelData());
-        population[i].addToImage(CopyImage);
-
-        ImageContainer CopyImageContainer(CopyImage);
-        
-        population[i].Fitness = 0;
-
-        //ON CPU
-        //for (int j = 0; j < CopyImageContainer.width * CopyImageContainer.height * 4; j++)
-        //{
-        //    population[i].Fitness += abs((float)GoalImageContainer.getPixelData()[j] - (float)CopyImageContainer.getPixelData()[j]);
-        //}
-
-        
-        //ON GPU
-        std::vector<float> fitness = CLAlgoritm.FitnessCalculation(CopyImageContainer.getPixelData(), GoalImageContainer.getPixelData(), CopyImageContainer.width, CopyImageContainer.height);
-        
-        for (int j = 0; j < CopyImageContainer.width * CopyImageContainer.height * 4; j++)
+        if(i == numberOfThreads - 1 )
         {
-            population[i].Fitness += fitness[j];
+           
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelInitPopulation, this, blockSize * i, GA_POPSIZE, std::ref(population), std::ref(buffer)));
+        }
+        else
+        {
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelInitPopulation, this, blockSize * i, blockSize * (i + 1), std::ref(population), std::ref(buffer)));
         }
     }
+
+    for (size_t i = 0; i < thread_pool.size(); i++)
+    {
+        if(thread_pool[i].joinable())
+            thread_pool[i].join();
+    }
+
+    //for (int i = 0; i < GA_POPSIZE; i++)
+    //{
+    //    GeneticImage e;        
+    //    
+    //    population.push_back(e);
+    //    buffer.push_back(e);
+    //}
+
 }
 
-void GeneticAlgoritm::SortByFitness(std::vector<GeneticEllipse> &population)
+void GeneticAlgoritm::CalculateFitness(ImageContainer GoalImageContainer)
+{
+    std::vector<std::thread> thread_pool;
+    int numberOfThreads = std::thread::hardware_concurrency();
+    thread_pool.reserve(numberOfThreads);
+    int blockSize = GA_POPSIZE / numberOfThreads;
+
+    for (size_t i = 0; i < numberOfThreads; i++)
+    {
+        if (i == numberOfThreads - 1)
+        {
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCalcFitness, this, blockSize * i, GA_POPSIZE, std::ref(population), GoalImageContainer));
+
+        }
+        else
+        {
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCalcFitness, this, blockSize * i, blockSize * (i + 1), std::ref(population), GoalImageContainer));
+        }
+    }
+
+    for (size_t i = 0; i < thread_pool.size(); i++)
+    {
+        if (thread_pool[i].joinable())
+            thread_pool[i].join();
+    }
+
+    //for (int i = 0; i < GA_POPSIZE; i++)
+    //{     
+    //    population[i].Fitness = 0;
+
+    //    //ON CPU
+    //    for (int j = 0; j < population[i].imageContainer.width * population[i].imageContainer.height * 4; j++)
+    //    {
+    //        population[i].Fitness += abs((float)GoalImageContainer.getPixelData()[j] - (float)population[i].imageContainer.getPixelData()[j]);
+    //    }
+
+    //    
+    //    //ON GPU
+    //   /* std::vector<float> fitness = CLAlgoritm.FitnessCalculation(population[i].imageContainer.getPixelData(), GoalImageContainer.getPixelData(), GeneticEllipse::pictureSize.x, GeneticEllipse::pictureSize.y);
+    //    
+    //    for (int j = 0; j < GeneticEllipse::pictureSize.x * GeneticEllipse::pictureSize.y * 4; j++)
+    //    {
+    //        population[i].Fitness += fitness[j];
+    //    }*/
+    //}
+}
+
+void GeneticAlgoritm::SortByFitness()
 {
     //SORT VECTOR DESCENDING
     std::sort(population.begin(), population.end());
+
+    std::cout << population[0].Fitness << " : " << population[population.size() - 1].Fitness << std::endl;
 }
 
-void GeneticAlgoritm::Mate(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer)
+GeneticImage GeneticAlgoritm::getBestImage()
+{
+    return population[0]; 
+}
+
+void GeneticAlgoritm::Mate()
 {
     const int esize = (int)(GA_POPSIZE * GA_ELITRATE);
+    
+    std::vector<std::thread> thread_pool;
+    int numberOfThreads = std::thread::hardware_concurrency();
+    thread_pool.reserve(numberOfThreads);
 
-    Elitism(population, buffer, esize);
+    thread_pool.push_back(std::thread(&GeneticAlgoritm::Elitism, this, esize));
+    
+    //Elitism(esize);
 
-    for (int i = esize; i < GA_POPSIZE; i++)
+    int blockSize = (GA_POPSIZE - esize) / (numberOfThreads - 1);
+
+
+    for (size_t i = 0; i < numberOfThreads - 1; i++)
     {
-        Crossover(buffer[i], population);
 
-        //Random number betweeen 0 and 1
-        float chance = (float)(rand() % 101) / 100;
+        if( i == (numberOfThreads - 1) - 1)
+        {
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCrossoverAndMutate, this, esize, blockSize * i, (GA_POPSIZE - esize), std::ref(population), std::ref(buffer)));
+        }
+        else
+        {
+            thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCrossoverAndMutate, this, esize, blockSize * i, blockSize * (i +1), std::ref(population), std::ref(buffer)));
+        }
 
-        if (chance <= GA_MUTATIONRATE)
-            Mutate(buffer[i]);
     }
 
-    //unsigned int numThreads = std::thread::hardware_concurrency();
-    //std::vector<std::thread> thread_pool;
-    //thread_pool.reserve(numThreads);
+    for (size_t i = 0; i < thread_pool.size(); i++)
+    {
+        if (thread_pool[i].joinable())
+            thread_pool[i].join();
+    }
 
-    //thread_pool.push_back(std::thread(&GeneticAlgoritm::Elitism, this, std::ref(population), std::ref(buffer),esize));
-
-    //int blockSize = (GA_POPSIZE - esize) / (numThreads -1);
-
-    //for (size_t i = 1; i < numThreads; i++)
+     
+    //for (int i = esize; i < GA_POPSIZE; i++)
     //{
-    //    if (i == numThreads - 1)
-    //    {
-    //        //Start,end,pop,buff
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCrossoverAndMutate, this, i * blockSize, GA_POPSIZE - esize, std::ref(population), std::ref(buffer)));
-    //    }
-    //    else
-    //    {
-    //        thread_pool.push_back(std::thread(&GeneticAlgoritm::ParallelCrossoverAndMutate, this, i * blockSize, (i + 1) * blockSize, std::ref(population), std::ref(buffer)));
-    //    }
-    //}   
+    //    Crossover(buffer[i]);
 
-    //for (size_t i = 0; i < numThreads; i++)
-    //{
-    //    thread_pool[i].join();
+    //    //Random number betweeen 0 and 1
+    //    float chance = (float)(rand() % 101) / 100;
+
+    //    if (chance <= GA_MUTATIONRATE)
+    //        Mutate(buffer[i]);
     //}
 }
 
-void GeneticAlgoritm::Swap(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer)
+void GeneticAlgoritm::Swap()
 {
     population.swap(buffer);
 }
 
-void GeneticAlgoritm::Elitism(std::vector<GeneticEllipse> &population, std::vector<GeneticEllipse> &buffer, int esize)
+void GeneticAlgoritm::Elitism(int esize)
 {
     for (int i = 0; i < esize; i++)
     {
@@ -194,91 +173,55 @@ void GeneticAlgoritm::Elitism(std::vector<GeneticEllipse> &population, std::vect
     }
 }
 
-void GeneticAlgoritm::Crossover(GeneticEllipse &c, std::vector<GeneticEllipse> &population)
+void GeneticAlgoritm::Crossover(GeneticImage &i)
 {
     int parent1i = rand() % (GA_POPSIZE);
     int parent2i = rand() % (GA_POPSIZE);
+    int crossoveri = rand() % ELLIPSE_NUMBER;
 
-    int crossoveri = rand() % 6;
+    GeneticImage p1Chromosomes = population[parent1i];
+    GeneticImage p2Chromosomes = population[parent2i];
 
-    std::vector<float> p1Chromosomes = population[parent1i].GetChromosomeVector();
-    std::vector<float> p2Chromosomes = population[parent2i].GetChromosomeVector();
-
-    std::vector<float> newChromosomes = {0, 0, 0, 0, 0};
-
-    for (int i = 0; i < 5; i++)
-    {
-        if (i < crossoveri)
-        {
-            newChromosomes[i] = p1Chromosomes[i];
-        }
-        else
-        {
-            newChromosomes[i] = p2Chromosomes[i];
-        }
-    }
-
-    if(crossoveri == 5)
-    {
-        c.color = population[parent1i].color;
-
-    }
-    else
-    {
-        c.color = population[parent2i].color;
-    }
-
-    c.setChromosome(newChromosomes);
+    i.Crossover(p1Chromosomes, p2Chromosomes, crossoveri);
 }
 
-void GeneticAlgoritm::Mutate(GeneticEllipse &c)
+void GeneticAlgoritm::Mutate(GeneticImage &i)
 {
-    int mutatei = rand() % 6;
-
-    switch (mutatei)
-    {
-    case 0:
-        c.move(randVector2f(Vector2f(-5, -5), Vector2f(5, 5)));
-        break;
-    case 1:
-        c.move(randVector2f(Vector2f(-5, -5), Vector2f(5, 5)));
-        break;
-    case 2:
-        c.scale(randVector2f(Vector2f(-5, -5), Vector2f(5, 5)));
-        break;
-    case 3:
-        c.scale(randVector2f(Vector2f(-5, -5), Vector2f(5, 5)));
-        break;
-    case 4:
-        c.rotate(randfloat(-5, 5));
-        break;
-    case 5:
-
-        c.color.r += randfloat(-10, 10);
-        c.color.g += randfloat(-10, 10);
-        c.color.b += randfloat(-10, 10);
-        c.color.a += randfloat(-10, 10);
-        break;
-    }
+    i.Mutate();
 }
 
-void GeneticAlgoritm::ParallelInitPopulation(int start, int end, std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer)
+void GeneticAlgoritm::ParallelInitPopulation(int start, int end, std::vector<GeneticImage>& population, std::vector<GeneticImage>& buffer)
 {
     for (int i = start; i < end; i++)
     {
-        GeneticEllipse e = GeneticEllipse::getRandomEllipse();
+        GeneticImage image;
 
-        population.push_back(e);
-        buffer.push_back(GeneticEllipse());
+        population.push_back(image);
+        buffer.push_back(image);
     }
 
 }
 
-void GeneticAlgoritm::ParallelCrossoverAndMutate(int start, int end, std::vector<GeneticEllipse>& population, std::vector<GeneticEllipse>& buffer)
+void GeneticAlgoritm::ParallelCrossoverAndMutate(const int esize,int start, int end, std::vector<GeneticImage>& population, std::vector<GeneticImage>& buffer)
 {
-    for (int i = start; i < end; i++)
+
+    for (size_t i = start; i < end; i++)
     {
-        Crossover(buffer[i], population);
+        int parent1i = 0;
+        int parent2i = 0;
+
+        while(parent1i == parent2i)
+        {
+            parent1i = rand() % esize;
+            parent2i = rand() % esize;
+        }
+
+        int crossoveri = rand() % ELLIPSE_NUMBER;
+
+        GeneticImage p1Chromosomes = population[parent1i];
+        GeneticImage p2Chromosomes = population[parent2i];
+
+        buffer[i].Crossover(p1Chromosomes, p2Chromosomes, crossoveri);
 
         //Random number betweeen 0 and 1
         float chance = (float)(rand() % 101) / 100;
@@ -289,25 +232,18 @@ void GeneticAlgoritm::ParallelCrossoverAndMutate(int start, int end, std::vector
 
 }
 
-void GeneticAlgoritm::ParallelCalcFitness(int start, int end, std::vector<GeneticEllipse>& population, ImageContainer GoalImageContainer, ImageContainer BaseImageContainer)
+void GeneticAlgoritm::ParallelCalcFitness(int start, int end, std::vector<GeneticImage>& population, ImageContainer GoalImageContainer)
 {
-   
-    //INIT STATE
-    sf::Image CopyImage;
 
     for (int i = start; i < end; i++)
     {
         population[i].Fitness = 0;
-        CopyImage.create(GeneticEllipse::pictureSize.x, GeneticEllipse::pictureSize.y, BaseImageContainer.getPixelData());
-        population[i].addToImage(CopyImage);
-        ImageContainer CopyImageContainer(CopyImage);
-                
-        //ON GPU
-        std::vector<float> fitness = CLAlgoritm.FitnessCalculation(CopyImageContainer.getPixelData(), GoalImageContainer.getPixelData(), CopyImageContainer.width, CopyImageContainer.height);
-        
-        for (int j = 0; j < CopyImageContainer.width * CopyImageContainer.height * 4; j++)
+
+        for (int j = 0; j < population[i].imageContainer.width * population[i].imageContainer.height * 4; j++)
         {
-            population[i].Fitness += fitness[j];
+            population[i].Fitness += abs((float)GoalImageContainer.getPixelData()[j] - (float)population[i].imageContainer.getPixelData()[j]);
         }
+
     }
+  
 }

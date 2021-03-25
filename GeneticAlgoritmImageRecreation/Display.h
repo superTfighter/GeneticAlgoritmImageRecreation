@@ -16,7 +16,7 @@ class Display
 public:
 
     Display(std::string path);
-    Display(std::string path,sf::RenderWindow *_window);
+    Display(std::string path, GeneticAlgoritm *_algoritm, sf::RenderWindow *_window);
     void Render();
     void HandleEvents();
 
@@ -31,6 +31,7 @@ private:
     sf::Texture GoalImageTexture;
     
     sf::Image BaseImage;
+    
     sf::Image CopyImage;
 	sf::Sprite CopyImageSprite;
 	sf::Texture CopyImageTexture;
@@ -45,12 +46,9 @@ private:
 
     std::chrono::steady_clock::time_point simulationStartTime;
 
+    GeneticAlgoritm *algoritm;
 
-    // Genetic Algoritm properties
-    std::vector<GeneticEllipse> population;
-    std::vector<GeneticEllipse> buffer;
-    
-    GeneticAlgoritm algoritm;
+    void DisplayLoadingWindow();
 
     void setCopySprite();
     void setImageScale(sf::Sprite& sprite);

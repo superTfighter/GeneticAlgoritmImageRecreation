@@ -17,7 +17,6 @@ public:
     void rotate(float _angle);
     void scale(sf::Vector2f _factor);
     Color color;
-    int Fitness;
 
     void addToImage(sf::Image &image);
 
@@ -26,16 +25,6 @@ public:
     void setChromosome(std::vector<float> ChromosomeVector);
 
     std::string toString();
-
-    bool operator<(const GeneticEllipse &str) const
-    {
-        return (Fitness < str.Fitness);
-    }
-
-    bool operator>(const GeneticEllipse &str) const
-    {
-        return (Fitness > str.Fitness);
-    }
 
 private:
     Vector2f position;

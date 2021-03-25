@@ -13,7 +13,6 @@ public:
 
 	~ImageContainer();
 
-	// Return a continous array of pixels, 4 data/pixel(RGBA)
 	const sf::Uint8* getPixelData();
 	
 	int width;
